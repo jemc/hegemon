@@ -17,6 +17,7 @@ module Hegemon
   def state_obj;  @_hegemon_states[@_hegemon_state]; end
   def state_objs; @_hegemon_states.clone;            end
   
+  threadlock :state, :states, :state_obj, :state_objs
   
   #***
   # Declarative functions
@@ -32,6 +33,7 @@ module Hegemon
   # Bypass all transition requirements and actions to directly impose state +s+
   # This should not be used in the public API except to set the initial state
   def impose_state(s); @_hegemon_state = s; end
+  threadlock :impose_state
   
   ##
   # Declare a state in the state machine
@@ -42,12 +44,14 @@ module Hegemon
     @_hegemon_states ||= Hash.new
     @_hegemon_states[state] = HegemonState.new(self, state, &block)
   end
+  threadlock :declare_state
   
   # Attempt a transition from the current state to state +s+
   def request_state(s, *flags)
     return false unless @_hegemon_states[@_hegemon_state].transitions[s]
     @_hegemon_states[@_hegemon_state].transitions[s].try(*flags)
   end
+  threadlock :request_state
   
   # Check for relevant state updates and do.
   #  Using :only_auto flag will ignore all transitions with auto_update false
@@ -57,16 +61,19 @@ module Hegemon
     trans = trans.select{|k,t| t.auto_update} if (flags.include? :only_auto)
     trans.each {|k,t| return true if t.try}
   false end
+  threadlock :update_state
   
   def do_state_tasks(i=0)
     return nil unless @_hegemon_states[@_hegemon_state]
     @_hegemon_states[@_hegemon_state].do_tasks(i)
   nil end
+  threadlock :do_state_tasks
   
   def iter_hegemon_auto_loop(i=0)
     do_state_tasks(i)
     update_state(:only_auto)
   end
+  threadlock :iter_hegemon_auto_loop
   
   # Run the automatic hegemon thread
   def start_hegemon_auto_thread
@@ -82,6 +89,7 @@ module Hegemon
   def end_hegemon_auto_thread
     @_end_hegemon_auto_thread = true
   end
+  threadlock :end_hegemon_auto_thread
 end
 
 
@@ -90,6 +98,9 @@ class HegemonState
   attr_reader :state
   
   def initialize(object, state, &block)
+    
+    raise ScriptError, "HegemonState must be initialized with a block"\
+      unless block.is_a? Proc
     
     @object = object
     @state  = state
@@ -114,6 +125,8 @@ class HegemonState
   
   def transitions; @transitions; end
   
+  threadlock self.instance_methods-Object.instance_methods
+  
 end
 
 
@@ -122,6 +135,9 @@ class HegemonTransition
   attr_reader :src_state, :dest_state
   
   def initialize(object, src_state, dest_state, &block)
+    
+    raise ScriptError, "HegemonTransition must be initialized with a block"\
+      unless block.is_a? Proc
     
     @object     = object
     @src_state  = src_state
@@ -194,5 +210,7 @@ private
   def procs_or(list)
     list.each {|proc| return true if @object.instance_eval(&proc)}
   false end
+  
+  threadlock self.instance_methods-Object.instance_methods
   
 end

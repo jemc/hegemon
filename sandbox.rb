@@ -13,13 +13,13 @@ class A
     
     impose_state :alive
     
-    declare_state :alive do
+    declare_state(:alive) do
       
       task do
         sleep 0
         $abc||=0
         $abc+=1
-        puts "I'm alive! #{iter}"
+        # puts "I'm alive! #{iter}"
       end
     
       transition_to :dying do
@@ -51,8 +51,6 @@ class A
 end
 
 a = A.new
-
-sleep 0.1
 a.dog=true
 
-sleep 1
+sleep 0.2
