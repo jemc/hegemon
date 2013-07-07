@@ -50,7 +50,16 @@ class A
   
 end
 
-a = A.new
-a.dog=true
+# a = A.new
+# a.dog=true
 
+
+t = Thread.new do
+  sleep 0.2
+end
+
+p t.status
+sleep 0.1
+p t.status
 sleep 0.2
+p t.status

@@ -77,13 +77,23 @@ module Hegemon
   
   # Run the automatic hegemon thread
   def start_hegemon_auto_thread
-    @_end_hegemon_auto_thread = false
-    @_hegemon_auto_thread ||= Thread.new do
-      i = -1
-      until @_end_hegemon_auto_thread
-        iter_hegemon_auto_loop(i+=1)
+    if (not @_hegemon_auto_thread) \
+    or (not @_hegemon_auto_thread.status)
+      
+      @_end_hegemon_auto_thread = false
+      @_hegemon_auto_thread = Thread.new do
+        i = 0
+        until @_end_hegemon_auto_thread
+          iter_hegemon_auto_loop(i)
+          i += 1
+        end
       end
     end
+  end
+  
+  def join_hegemon_auto_thread
+    start_hegemon_auto_thread
+    @_hegemon_auto_thread.join
   end
   
   def end_hegemon_auto_thread
