@@ -17,7 +17,7 @@ module Hegemon
   def state_obj;  @_hegemon_states[@_hegemon_state]; end
   def state_objs; @_hegemon_states.clone;            end
   
-  threadlock :state, :states, :state_obj, :state_objs
+  threadlock :state, :states, :state_obj, :state_objs, :lock=>:@_hegemon_lock
   
   #***
   # Declarative functions
@@ -33,7 +33,7 @@ module Hegemon
   # Bypass all transition requirements and actions to directly impose state +s+
   # This should not be used in the public API except to set the initial state
   def impose_state(s); @_hegemon_state = s; end
-  threadlock :impose_state
+  threadlock :impose_state, :lock=>:@_hegemon_lock
   
   ##
   # Declare a state in the state machine
@@ -44,14 +44,14 @@ module Hegemon
     @_hegemon_states ||= Hash.new
     @_hegemon_states[state] = HegemonState.new(self, state, &block)
   end
-  threadlock :declare_state
+  threadlock :declare_state, :lock=>:@_hegemon_lock
   
   # Attempt a transition from the current state to state +s+
   def request_state(s, *flags)
     return false unless @_hegemon_states[@_hegemon_state].transitions[s]
     @_hegemon_states[@_hegemon_state].transitions[s].try(*flags)
   end
-  threadlock :request_state
+  threadlock :request_state, :lock=>:@_hegemon_lock
   
   # Check for relevant state updates and do.
   #  Using :only_auto flag will ignore all transitions with auto_update false
@@ -61,19 +61,25 @@ module Hegemon
     trans = trans.select{|k,t| t.auto_update} if (flags.include? :only_auto)
     trans.each {|k,t| return true if t.try}
   false end
-  threadlock :update_state
+  threadlock :update_state, :lock=>:@_hegemon_lock
+  
+  def block_until_state(s);
+    raise ArgumentError, "Cannot block until undefined state :#{s}" \
+      unless @_hegemon_states.keys.include? s
+    sleep 0 until @_hegemon_state==s
+  end
   
   def do_state_tasks(i=0)
     return nil unless @_hegemon_states[@_hegemon_state]
     @_hegemon_states[@_hegemon_state].do_tasks(i)
   nil end
-  threadlock :do_state_tasks
+  threadlock :do_state_tasks, :lock=>:@_hegemon_lock
   
   def iter_hegemon_auto_loop(i=0)
     do_state_tasks(i)
     update_state(:only_auto)
   end
-  threadlock :iter_hegemon_auto_loop
+  threadlock :iter_hegemon_auto_loop, :lock=>:@_hegemon_lock
   
   # Run the automatic hegemon thread
   def start_hegemon_auto_thread
@@ -98,7 +104,7 @@ module Hegemon
   def end_hegemon_auto_thread
     @_end_hegemon_auto_thread = true
   end
-  threadlock :end_hegemon_auto_thread
+  threadlock :end_hegemon_auto_thread, :lock=>:@_hegemon_lock
 end
 
 
