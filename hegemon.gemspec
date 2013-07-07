@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name          = 'hegemon'
-  s.version       = '0.0.1'
-  s.date          = '2013-07-05'
+  s.version       = '0.0.2'
+  s.date          = '2013-07-07'
   s.summary       = "hegemon"
   s.description   = \
 "A generic Ruby state machine pattern, with thread safety as a top priority."+\

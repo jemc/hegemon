@@ -1,10 +1,7 @@
 require 'threadlock'
 
 Thread.abort_on_exception = true
-
 def puts(*args); $stdout.puts(*args); end
-
-DEBUG = nil
 
 module Hegemon
   
@@ -120,8 +117,6 @@ class HegemonState
     @object = object
     @state  = state
     
-    puts "In #{@object}, new state :#{@state}." if DEBUG
-    
     @tasks       = []
     @transitions = Hash.new
     
@@ -157,9 +152,6 @@ class HegemonTransition
     @object     = object
     @src_state  = src_state
     @dest_state = dest_state
-    
-    puts "In #{@object}, new transition from"\
-         " :#{@src_state} to #{dest_state}." if DEBUG
     
     @conditions   = []
     @sufficients  = []
