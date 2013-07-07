@@ -92,8 +92,7 @@ module Hegemon
   end
   
   def join_hegemon_auto_thread
-    start_hegemon_auto_thread
-    @_hegemon_auto_thread.join
+    @_hegemon_auto_thread.join if @_hegemon_auto_thread
   end
   
   def end_hegemon_auto_thread
