@@ -11,54 +11,48 @@ class A
     
     @dog = false
     
-    
-    
     impose_state :alive
     
     declare_state :alive do
+      
+      task do
+        sleep 0
+        $abc||=0
+        $abc+=1
+        puts "I'm alive! #{iter}"
+      end
     
       transition_to :dying do
         
-        condition do
-          @dog
-        end
+        # auto_update false
         
-        condition do
-          true
-        end
+        condition {@dog}
+        condition {true}
         
-        requirement do
-          true
-        end
+        requirement {true}
         
-        sufficient do
-          true==false
-        end
+        sufficient {true==false}
         
         before do
           puts "goodbye, :#{state}"
         end
         
         after do
-          puts "hallo, :#{state}"
+          puts "hello, :#{state}"
         end
         
       end
     end
+    
+    start_hegemon_auto_thread
   
   end
   
 end
 
-# h = Hash.new
-# h['dog']='woof'
-# p h.keys
-
 a = A.new
-p a.states[:alive].transitions[:dying].ready?
-p a.states[:alive].transitions[:dying].ready? :force
+
+sleep 0.1
 a.dog=true
-p a.states[:alive].transitions[:dying].ready?
-p a.state
-p a.states[:alive].transitions[:dying].try
-p a.state
+
+sleep 1
