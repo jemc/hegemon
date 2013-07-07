@@ -1,7 +1,6 @@
 require 'threadlock'
 
 Thread.abort_on_exception = true
-def puts(*args); $stdout.puts(*args); end
 
 module Hegemon
   

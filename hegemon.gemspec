@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name          = 'hegemon'
-  s.version       = '0.0.2'
+  s.version       = '0.0.3'
   s.date          = '2013-07-07'
   s.summary       = "hegemon"
   s.description   = \
@@ -15,5 +15,5 @@ Gem::Specification.new do |s|
   s.licenses      = ["MIT License",
                      "Copyright 2013 Joe McIlvain"]
   
-  s.add_dependency('threadlock')
+  s.add_dependency('threadlock', '~> 1.2')
 end
