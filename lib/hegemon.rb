@@ -26,21 +26,55 @@ module Hegemon
   #***
   
   ##
-  # Bypass all transition requirements and actions to directly impose state +s+
-  # This should not be used in the public API except to set the initial state
-  def impose_state(s); @_hegemon_state = s; end
-  threadlock :impose_state, :lock=>:@_hegemon_lock
-  
-  ##
-  # Declare a state in the state machine
-  # [+state+] The state name to use, as a symbol
-  # [+&block+] The state's declarative block 
-  #  (refer to Declarative Functions of HegemonState)
+  # :category: Declarative Methods
+  #
+  # Declare a state in the state machine.
+  #
+  # [+state+]
+  #   The state name to use, as a symbol
+  # [+block+]
+  #   The state's declarative block.  
+  #   All code within gets evaluated not in its original binding,
+  #   but in the context of a new HegemonState instance object.  
+  #   For stable use, only call methods in this block that are
+  #   listed in HegemonState@Declarative+Methods.
+  # 
+  # The state and associated state machine data and methods will be
+  # associated with the object referred to by +self+ object in the context
+  # in which the declarative method is called.
+  # 
+  # This means that in typical usage, the declarative methods listed 
+  # in Hegemon@Declarative+Methods (including +state_declare+) should be 
+  # called only from within an instance method, such as +initialize+.
+  # 
+  # The following example creates a skeleton state machine in each
+  # +MyStateMachine+ instance object with two states: +:working+ and +:idle+.
+  # 
+  #   class MyStateMachine
+  #     include Hegemon
+  #     
+  #     def initialize
+  #       state_declare :working do
+  #         # various HegemonState Declarative Methods
+  #       end
+  #       state_declare :idle do
+  #         # various HegemonState Declarative Methods
+  #       end
+  #     end
+  #   end
+  # 
   def declare_state(state, &block)
     @_hegemon_states ||= Hash.new
     @_hegemon_states[state] = HegemonState.new(self, state, &block)
   end
   threadlock :declare_state, :lock=>:@_hegemon_lock
+  
+  ##
+  # :category: Declarative Methods
+  # Bypass all transition requirements and actions to directly impose state +s+
+  # This should not be used in the public API except to set the initial state
+  def impose_state(s); @_hegemon_state = s; end
+  threadlock :impose_state, :lock=>:@_hegemon_lock
   
   # Attempt a transition from the current state to state +s+
   def request_state(s, *flags)
