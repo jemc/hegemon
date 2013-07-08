@@ -44,20 +44,22 @@ module Hegemon
   # in which the declarative method is called.
   # 
   # This means that in typical usage, the declarative methods listed 
-  # in Hegemon@Declarative+Methods (including +state_declare+) should be 
+  # in Hegemon@Declarative+Methods (including declare_state) should be 
   # called only from within an instance method, such as +initialize+.
   # 
   # The following example creates a skeleton state machine in each
   # +MyStateMachine+ instance object with two states: +:working+ and +:idle+.
   # 
+  #   require 'hegemon'
+  #   
   #   class MyStateMachine
   #     include Hegemon
   #     
   #     def initialize
-  #       state_declare :working do
+  #       declare_state :working do
   #         # various HegemonState Declarative Methods
   #       end
-  #       state_declare :idle do
+  #       declare_state :idle do
   #         # various HegemonState Declarative Methods
   #       end
   #     end
@@ -69,19 +71,79 @@ module Hegemon
   end
   threadlock :declare_state, :lock=>:@_hegemon_lock
   
+  
   ##
   # :category: Declarative Methods
-  # Bypass all transition requirements and actions to directly impose state +s+
-  # This should not be used in the public API except to set the initial state
-  def impose_state(s); @_hegemon_state = s; end
+  #
+  # Bypass all transition requirements and actions to 
+  # directly impose state +state+ as the current state.
+  #
+  # This should *not* be used in the public API *except* to 
+  # set the initial state of the state machine, because state changes
+  # imposed by impose_state do not obey any rules of the state machine.
+  #
+  # [+state+]
+  #   The state to impose, as a symbol
+  #
+  # This method should be called in the same scope in which the state
+  # was declared with declare_state\.
+  # 
+  # The following example creates a skeleton state machine in each
+  # +MyStateMachine+ instance object with two states: +:working+ and +:idle+
+  # and sets +:working+ as the initial state.
+  # 
+  #   require 'hegemon'
+  #   
+  #   class MyStateMachine
+  #     include Hegemon
+  #     
+  #     def initialize
+  #       impose_state :working
+  #       declare_state :working do
+  #         # various HegemonState Declarative Methods
+  #       end
+  #       declare_state :idle do
+  #         # various HegemonState Declarative Methods
+  #       end
+  #     end
+  #   end
+  def impose_state(s) # :args: state
+    @_hegemon_state = s
+  end
   threadlock :impose_state, :lock=>:@_hegemon_lock
   
-  # Attempt a transition from the current state to state +s+
-  def request_state(s, *flags)
+  ##
+  # :category: Action Methods
+  #
+  # Request a transition from the current state to state +state+.
+  #
+  # [+state+]
+  #   The state to which transition is desired, as a symbol
+  # [+flags+]
+  #   All subsequent arguments are interpreted as flags,
+  #   and the only meaningful flag is +:force+ 
+  #   (See transition requirements below).
+  #
+  # In order for the transition to occur, the transition must 
+  # have been defined (using HegemonState#transition_to), and the
+  # transition rules declared in the transition declarative block
+  # have been suitably met by any one of the following situations:
+  # * *All* HegemonTransition#requirement blocks evaluate as +true+ 
+  #   and the +:force+ flag was included in +flags+.
+  # * At least *one* HegemonTransition#sufficient block and *all* 
+  #   HegemonTransition#requirement blocks evaluate as +true+
+  # * *All* HegemonTransition#condition blocks and *all* 
+  #   HegemonTransition#requirement blocks evaluate as +true+
+  #
+  # Note that evaluation of the rule blocks stops when a match is found,
+  # so rule blocks with code that has "side effects" are discouraged.
+  #
+  def request_state(s, *flags) # :args: state, *flags
     return false unless @_hegemon_states[@_hegemon_state].transitions[s]
     @_hegemon_states[@_hegemon_state].transitions[s].try(*flags)
   end
   threadlock :request_state, :lock=>:@_hegemon_lock
+  
   
   # Check for relevant state updates and do.
   #  Using :only_auto flag will ignore all transitions with auto_update false
@@ -112,7 +174,8 @@ module Hegemon
   threadlock :iter_hegemon_auto_loop, :lock=>:@_hegemon_lock
   
   # Run the automatic hegemon thread
-  def start_hegemon_auto_thread
+  # :args: something, else
+  def start_hegemon_auto_thread # :args: flag, dag
     if (not @_hegemon_auto_thread) \
     or (not @_hegemon_auto_thread.status)
       
