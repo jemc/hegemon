@@ -4,31 +4,30 @@ Thread.abort_on_exception = true
 
 module Hegemon
   
-  #***
-  # Accessor functions
-  #***
+  ##
+  # :section: Accessor Methods
+  #
   
+  # Return the current state (as a symbol)
   def state;      @_hegemon_state;                   end
+  # Return the list of declared states (as an array of symbols)
   def states;     @_hegemon_states.keys;             end
+  # Return the current state (as a HegemonState object)
   def state_obj;  @_hegemon_states[@_hegemon_state]; end
+  # Return the current state (as a Hash of HegemonState objects keyed by symbol)
   def state_objs; @_hegemon_states.clone;            end
   
   threadlock :state, :states, :state_obj, :state_objs, :lock=>:@_hegemon_lock
   
-  #***
-  # Declarative functions
-  #***
-  # Run these inside of your object's #initialize method
-  #  to set the parameters of the state machine
-  # All user-provided action blocks will have the scope of the instance object
-  #  in which the state machine parameters are initialized, and all parameters
-  #  should be initialized in the same place (in #initialize, typically)
-  #***
+  
   
   ##
-  # :category: Declarative Methods
+  # :section: Declarative Methods
   #
-  # Declare a state in the state machine.
+  
+  #
+  # Declare a state in the state machine.  
+  # Returns the HegemonState object created.
   #
   # [+state+]
   #   The state name to use, as a symbol
@@ -72,8 +71,6 @@ module Hegemon
   threadlock :declare_state, :lock=>:@_hegemon_lock
   
   
-  ##
-  # :category: Declarative Methods
   #
   # Bypass all transition requirements and actions to 
   # directly impose state +state+ as the current state.
@@ -109,13 +106,18 @@ module Hegemon
   #   end
   def impose_state(s) # :args: state
     @_hegemon_state = s
-  end
+  nil end
   threadlock :impose_state, :lock=>:@_hegemon_lock
   
+  
+  
   ##
-  # :category: Action Methods
+  # :section: State Action Methods
   #
-  # Request a transition from the current state to state +state+.
+  
+  #
+  # Request a transition from the current state to state +state+.  
+  # Returns +true+ if the transition was performed, else returns +false+.
   #
   # [+state+]
   #   The state to which transition is desired, as a symbol
@@ -126,7 +128,7 @@ module Hegemon
   #
   # In order for the transition to occur, the transition must 
   # have been defined (using HegemonState#transition_to), and the
-  # transition rules declared in the transition declarative block
+  # transition rules declared in the HegemonTransition declarative block
   # have been suitably met by any one of the following situations:
   # * *All* HegemonTransition#requirement blocks evaluate as +true+ 
   #   and the +:force+ flag was included in +flags+.
@@ -144,9 +146,28 @@ module Hegemon
   end
   threadlock :request_state, :lock=>:@_hegemon_lock
   
-  
-  # Check for relevant state updates and do.
-  #  Using :only_auto flag will ignore all transitions with auto_update false
+  #
+  # Check the list of possible transitions from the current state
+  # and perform the first transition that is found to be ready, if any.  
+  # Returns +true+ if the transition was performed, else returns +false+.
+  #
+  # [+flags+]
+  #   All subsequent arguments are interpreted as flags,
+  #   and the only meaningful flag is +:only_auto+.  
+  #   Use of the +:only_auto+ flag indicates that all state
+  #   transitions which have disabled automatic updating with 
+  #   HegemonTransition#auto_update should be ignored.
+  # 
+  # In order for a transition to occur, the transition rules 
+  # declared in the HegemonTransition declarative block have been 
+  # suitably met by any one of the following situations:
+  # * *All* HegemonTransition#requirement blocks evaluate as +true+ 
+  #   and the +:force+ flag was included in +flags+.
+  # * At least *one* HegemonTransition#sufficient block and *all* 
+  #   HegemonTransition#requirement blocks evaluate as +true+
+  # * *All* HegemonTransition#condition blocks and *all* 
+  #   HegemonTransition#requirement blocks evaluate as +true+
+  #
   def update_state(*flags)
     return false unless @_hegemon_states[@_hegemon_state]
     trans = @_hegemon_states[@_hegemon_state].transitions
@@ -155,27 +176,56 @@ module Hegemon
   false end
   threadlock :update_state, :lock=>:@_hegemon_lock
   
-  def block_until_state(s);
+  #
+  # Sleep the current thread until the current state is equal to +state+
+  #
+  # [+state+]
+  #   The symbol to compare against the current state against
+  #
+  def block_until_state(s); # :args: state
     raise ArgumentError, "Cannot block until undefined state :#{s}" \
       unless @_hegemon_states.keys.include? s
     sleep 0 until @_hegemon_state==s
-  end
+  nil end
   
-  def do_state_tasks(i=0)
+  # 
+  # Perform all HegemonState#task\s associated with the current state.  
+  # Tasks are performed in the order they were declared in the 
+  # HegemonState declarative block.
+  # 
+  # [+iter_num+ = 0]
+  #   Specify the iteration number to be passed to the task block.
+  #   When called by the +hegemon_auto_thread+ (see start_hegemon_auto_thread),
+  #   this number counts up from zero for each iteration of the 
+  #   +hegemon_auto_thread+ loop.  If no value is specified, +0+ is used.
+  # 
+  def do_state_tasks(iter_num = 0)
     return nil unless @_hegemon_states[@_hegemon_state]
-    @_hegemon_states[@_hegemon_state].do_tasks(i)
+    @_hegemon_states[@_hegemon_state].do_tasks(iter_num)
   nil end
   threadlock :do_state_tasks, :lock=>:@_hegemon_lock
+  
+  
+  
+  ##
+  # :section: Thread Action Methods
+  #
   
   def iter_hegemon_auto_loop(i=0)
     do_state_tasks(i)
     update_state(:only_auto)
   end
+  private :iter_hegemon_auto_loop
   threadlock :iter_hegemon_auto_loop, :lock=>:@_hegemon_lock
   
-  # Run the automatic hegemon thread
-  # :args: something, else
-  def start_hegemon_auto_thread # :args: flag, dag
+  #
+  # Run the +hegemon_auto_thread+ if it is not already running.  
+  # Returns the Thread object.  
+  # The +hegemon_auto_thread+ continually calls do_state_tasks and update_state,
+  # counting up from +0+ the value passed to do_state_tasks, until the 
+  # thread is stopped with end_hegemon_auto_thread\.
+  #
+  def start_hegemon_auto_thread
     if (not @_hegemon_auto_thread) \
     or (not @_hegemon_auto_thread.status)
       
@@ -188,16 +238,27 @@ module Hegemon
         end
       end
     end
+    @_hegemon_auto_thread
   end
   
+  #
+  # Block until the +hegemon_auto_thread+ is finished.
+  #
   def join_hegemon_auto_thread
     @_hegemon_auto_thread.join if @_hegemon_auto_thread
   end
   
+  #
+  # Raise a flag to stop the loop inside +hegemon_auto_thread+.
+  # 
   def end_hegemon_auto_thread
     @_end_hegemon_auto_thread = true
   end
   threadlock :end_hegemon_auto_thread, :lock=>:@_hegemon_lock
+  
+  #
+  # :section:
+  ##
 end
 
 
