@@ -188,14 +188,9 @@ module Hegemon
       unless @_hegemon_states.keys.include? s
     
     @_hegemon_transition_lock ||= Monitor.new
-    sleep 0 until check_state(s)
+    sleep 0 until @_hegemon_transition_lock.synchronize { @_hegemon_state==s }
+  
   nil end
-  
-  def check_state(s); @_hegemon_state==s; end
-  private    :check_state
-  threadlock :check_state,
-       lock: :@_hegemon_transition_lock
-  
   
   # 
   # Perform all HegemonState#task\s associated with the current state.  
