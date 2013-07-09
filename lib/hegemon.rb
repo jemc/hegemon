@@ -181,9 +181,11 @@ module Hegemon
   #
   # [+state+]
   #   The symbol to compare against the current state against
+  # [+throttle = 0+]
+  #   The amount of time to sleep between state checks, 0 by default.
   #
   
-  def block_until_state(s); # :args: state
+  def block_until_state(s, throttle = 0); # :args: state, throttle = 0
     raise ArgumentError, "Cannot block until undefined state :#{s}" \
       unless @_hegemon_states.keys.include? s
     
@@ -262,6 +264,7 @@ module Hegemon
   # 
   def end_hegemon_auto_thread
     @_end_hegemon_auto_thread = true
+    @_hegemon_auto_thread     = nil
   end
   threadlock :end_hegemon_auto_thread, :lock=>:@_hegemon_lock
   
