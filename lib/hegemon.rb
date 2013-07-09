@@ -233,7 +233,7 @@ module Hegemon
     or (not @_hegemon_auto_thread.status)
       
       @_end_hegemon_auto_thread = false
-      @_hegemon_auto_thread_throttle ||= throttle
+      @_hegemon_auto_thread_throttle = throttle
       @_hegemon_auto_thread = Thread.new do
         i = 0
         until @_end_hegemon_auto_thread
