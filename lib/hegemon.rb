@@ -182,11 +182,20 @@ module Hegemon
   # [+state+]
   #   The symbol to compare against the current state against
   #
+  
   def block_until_state(s); # :args: state
     raise ArgumentError, "Cannot block until undefined state :#{s}" \
       unless @_hegemon_states.keys.include? s
-    sleep 0 until @_hegemon_state==s
+    
+    @_hegemon_transition_lock ||= Monitor.new
+    sleep 0 until check_state(s)
   nil end
+  
+  def check_state(s); @_hegemon_state==s; end
+  private    :check_state
+  threadlock :check_state,
+       lock: :@_hegemon_transition_lock
+  
   
   # 
   # Perform all HegemonState#task\s associated with the current state.  
@@ -315,6 +324,11 @@ class HegemonTransition
     @src_state  = src_state
     @dest_state = dest_state
     
+    @object.instance_variable_set(:@_hegemon_transition_lock, 
+                                  (@transition_lock = Monitor.new)) \
+      unless (@transition_lock = @object.instance_variable_get( \
+                                  :@_hegemon_transition_lock))
+    
     @conditions   = []
     @sufficients  = []
     @requirements = []
@@ -359,13 +373,15 @@ class HegemonTransition
 private
   
   def perform
-    @progress = :pre
-    procs_run(@befores)
-    @progress = :impose
-    @object.impose_state(@dest_state)
-    @progress = :post
-    procs_run(@afters)
-    @progress = nil
+    @transition_lock.synchronize do
+      @progress = :pre
+      procs_run(@befores)
+      @progress = :impose
+      @object.impose_state(@dest_state)
+      @progress = :post
+      procs_run(@afters)
+      @progress = nil
+    end
   nil end
   
   def procs_run(list)
