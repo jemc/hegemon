@@ -17,7 +17,7 @@ module Hegemon
   # Return the current state (as a Hash of HegemonState objects keyed by symbol)
   def state_objs; @_hegemon_states.clone;            end
   
-  threadlock :state, :states, :state_obj, :state_objs, :lock=>:@_hegemon_lock
+  # threadlock :state, :states, :state_obj, :state_objs, :lock=>:@_hegemon_lock
   
   
   
@@ -225,16 +225,21 @@ module Hegemon
   # counting up from +0+ the value passed to do_state_tasks, until the 
   # thread is stopped with end_hegemon_auto_thread\.
   #
-  def start_hegemon_auto_thread
+  # [+throttle = 0.1+]
+  #   The amount of time to sleep between iterations, 0.1 seconds by default.
+  #
+  def start_hegemon_auto_thread(throttle = 0.1)
     if (not @_hegemon_auto_thread) \
     or (not @_hegemon_auto_thread.status)
       
       @_end_hegemon_auto_thread = false
+      @_hegemon_auto_thread_throttle ||= throttle
       @_hegemon_auto_thread = Thread.new do
         i = 0
         until @_end_hegemon_auto_thread
           iter_hegemon_auto_loop(i)
           i += 1
+          sleep @_hegemon_auto_thread_throttle
         end
       end
     end
