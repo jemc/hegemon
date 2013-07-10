@@ -231,21 +231,25 @@ module Hegemon
   # counting up from +0+ the value passed to do_state_tasks, until the 
   # thread is stopped with end_hegemon_auto_thread\.
   #
-  # [+throttle = 0.1+]
-  #   The amount of time to sleep between iterations, 0.1 seconds by default.
+  # [+throttle = nil+]
+  #   The amount of time to sleep between iterations.  
+  #   If left as nil, the last given throttle value is used.
+  #   The default throttle value is 0.05 seconds.
   #
-  def start_hegemon_auto_thread(throttle = 0.1)
+  def start_hegemon_auto_thread(throttle = nil)
     if (not @_hegemon_auto_thread) \
     or (not @_hegemon_auto_thread.status)
       
       @_end_hegemon_auto_thread = false
-      @_hegemon_auto_thread_throttle = throttle
+      @_hegemon_auto_thread_throttle ||= throttle
+      @_hegemon_auto_thread_throttle ||= 0.05
       @_hegemon_auto_thread = Thread.new do
         i = 0
         until @_end_hegemon_auto_thread
           iter_hegemon_auto_loop(i)
           i += 1
-          sleep @_hegemon_auto_thread_throttle
+          sleep @_hegemon_auto_thread_throttle \
+            unless @_end_hegemon_auto_thread
         end
       end
     end
@@ -264,6 +268,7 @@ module Hegemon
   # 
   def end_hegemon_auto_thread
     @_end_hegemon_auto_thread = true
+    @_hegemon_auto_thread.join unless @_hegemon_auto_thread==Thread.current
     @_hegemon_auto_thread     = nil
   end
   threadlock :end_hegemon_auto_thread, :lock=>:@_hegemon_lock
@@ -293,6 +298,8 @@ class HegemonState
   end
   
   def task(&block);  @tasks << block if block;  end
+  def setup_task(&block) #TODO
+  end
   
   def transition_to(state, &block)
     @transitions[state] = HegemonTransition.new(@object, @state, state, &block)
