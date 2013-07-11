@@ -141,6 +141,7 @@ module Hegemon
   # so rule blocks with code that has "side effects" are discouraged.
   #
   def request_state(s, *flags) # :args: state, *flags
+    return true if @_hegemon_state==s
     return false unless @_hegemon_states[@_hegemon_state].transitions[s]
     @_hegemon_states[@_hegemon_state].transitions[s].try(*flags)
   end
